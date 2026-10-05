@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ledger — Expense Tracker</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div id="auth-view" class="auth-shell">
+    <div class="auth-card">
+      <p class="eyebrow">Personal ledger</p>
+      <h1>Track spending without the spreadsheet mess.</h1>
+      <p class="lede">Sign in to log expenses, filter by month, and see where the money went.</p>
+
+      <div class="tabs">
+        <button type="button" class="tab is-active" data-auth="login">Sign in</button>
+        <button type="button" class="tab" data-auth="register">Create account</button>
+      </div>
+
+      <form id="login-form" class="stack">
+        <label>
+          Email
+          <input type="email" name="email" required placeholder="you@email.com" />
+        </label>
+        <label>
+          Password
+          <input type="password" name="password" required minlength="3" />
+        </label>
+        <button type="submit" class="btn primary">Sign in</button>
+      </form>
+
+      <form id="register-form" class="stack hidden">
+        <label>
+          Name
+          <input type="text" name="name" required placeholder="Your name" />
+        </label>
+        <label>
+          Email
+          <input type="email" name="email" required placeholder="you@email.com" />
+        </label>
+        <label>
+          Password
+          <input type="password" name="password" required minlength="3" />
+        </label>
+        <button type="submit" class="btn primary">Create account</button>
+      </form>
+
+      <p id="auth-error" class="error hidden"></p>
+    </div>
+  </div>
+
+  <div id="app-view" class="hidden">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Ledger</p>
+        <h1>Hello, <span id="user-name">there</span></h1>
+      </div>
+      <button type="button" id="logout-btn" class="btn ghost">Sign out</button>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <h2>Add expense</h2>
+        <form id="expense-form" class="stack">
+          <label>
+            Title
+            <input type="text" name="title" placeholder="Lunch, cab, electricity..." />
+          </label>
+          <div class="row">
+            <label>
+              Amount
+              <input type="number" name="amount" min="1" required placeholder="500" />
+            </label>
+            <label>
+              Date
+              <input type="date" name="expense_date" required />
+            </label>
+          </div>
+          <label>
+            Category
+            <select name="category" required>
+              <option value="Food">Food</option>
+              <option value="Travel">Travel</option>
+              <option value="Bills">Bills</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Health">Health</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+          <button type="submit" class="btn primary">Save expense</button>
+          <p id="expense-error" class="error hidden"></p>
+        </form>
+      </section>
+
+      <section class="panel wide">
+        <div class="panel-head">
+          <h2>This month</h2>
+          <label class="inline">
+            Month
+            <select id="summary-month"></select>
+          </label>
+        </div>
+        <div id="summary-cards" class="cards"></div>
+      </section>
+
+      <section class="panel full">
+        <div class="panel-head">
+          <h2>All expenses</h2>
+        </div>
+        <form id="filter-form" class="filters">
+          <label>
+            Category
+            <select name="category">
+              <option value="">All</option>
+              <option value="Food">Food</option>
+              <option value="Travel">Travel</option>
+              <option value="Bills">Bills</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Health">Health</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+          <label>
+            Month
+            <select name="month">
+              <option value="">All</option>
+            </select>
+          </label>
+          <label>
+            Min
+            <input type="number" name="min_amount" min="1" placeholder="0" />
+          </label>
+          <label>
+            Max
+            <input type="number" name="max_amount" min="1" placeholder="10000" />
+          </label>
+          <button type="submit" class="btn">Filter</button>
+          <button type="button" id="reset-filters" class="btn ghost">Reset</button>
+        </form>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th class="num">Amount</th>
+              </tr>
+            </thead>
+            <tbody id="expense-rows"></tbody>
+          </table>
+        </div>
+        <p id="empty-state" class="muted hidden">No expenses yet. Add your first one on the left.</p>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
