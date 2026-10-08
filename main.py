@@ -36,5 +36,6 @@ def validation_exception_handler(request: Request, exc: RequestValidationError):
 @app.get("/")
 def root():
     return {
-        "message": "Expense Tracker API is Running"
+        "message": "Expense Tracker API is Running .."
     }
+    
