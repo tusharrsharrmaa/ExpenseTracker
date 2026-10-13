@@ -59,3 +59,25 @@ def logout(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     session.is_revoked = True
     db.commit()
     return {"message": "Logged out successfully"}
+
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    payload = decode_access_token(token)
+    if payload is None:
+        raise unauthorized("Invalid token")
+
+    session = db.query(UserSession).filter(UserSession.id == payload.get("sid")).first()
+    if not session or session.is_revoked:
+        raise unauthorized("Session expired or logged out")
+
+    now = utcnow()
+    expires = session.expires_at
+    if expires.tzinfo is None and now.tzinfo is not None:
+        now = now.replace(tzinfo=None)
+    if expires <= now:
+        raise unauthorized("Session expired")
+
+    user = db.query(User).filter(User.id == int(payload["sub"])).first()
+    if not user:
+        raise unauthorized("User not found")
+    return user

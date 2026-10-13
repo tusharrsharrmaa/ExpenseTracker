@@ -1,39 +1,89 @@
-from fastapi import FastAPI, Request
-from fastapi.encoders import jsonable_encoder
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from typing import List, Optional
 
-from database import engine, Base
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from database import get_db
 import model
-from routers import auth, expenses, users
-from exceptions import BusinessRuleError
+from routers.auth import get_current_user  # CHECK: where is yours defined?
 
-Base.metadata.create_all(bind=engine)
-
-app = FastAPI(
-    title="Smart Expense Tracker API",
-    description="Track expenses per user with JWT authentication.",
-    version="1.0.0",
-)
-
-app.include_router(auth.router)
-app.include_router(users.router)
-app.include_router(expenses.router)
+router = APIRouter(prefix="/expenses", tags=["Expenses"])
 
 
-@app.exception_handler(BusinessRuleError)
-def business_rule_handler(request: Request, exc: BusinessRuleError):
-    return JSONResponse(status_code=400, content={"detail": exc.message})
+class ExpenseCreate(BaseModel):
+    title: str
+    amount: float
+    category: Optional[str] = None
 
 
-@app.exception_handler(RequestValidationError)
-def validation_handler(request: Request, exc: RequestValidationError):
-    return JSONResponse(
-        status_code=422,
-        content={"detail": jsonable_encoder(exc.errors())},
+class ExpenseOut(ExpenseCreate):
+    id: int
+    model_config = {"from_attributes": True}
+
+
+def get_user_expense(db: Session, expense_id: int, user_id: int):
+    expense = (
+        db.query(model.Expense)
+        .filter(model.Expense.id == expense_id, model.Expense.user_ID == user_id)
+        .first()
     )
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    return expense
 
 
-@app.get("/", tags=["Health"])
-def root():
-    return {"message": "Expense Tracker API is running"}
+@router.post("/", response_model=ExpenseOut, status_code=status.HTTP_201_CREATED)
+def create_expense(
+    data: ExpenseCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    expense = model.Expense(**data.model_dump(), user_ID=current_user.id)
+    db.add(expense)
+    db.commit()
+    db.refresh(expense)
+    return expense
+
+
+@router.get("/", response_model=List[ExpenseOut])
+def list_expenses(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return db.query(model.Expense).filter(model.Expense.user_IDgitgi == current_user.id).all()
+
+
+@router.get("/{expense_id}", response_model=ExpenseOut)
+def get_expense(
+    expense_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return get_user_expense(db, expense_id, current_user.id)
+
+
+@router.put("/{expense_id}", response_model=ExpenseOut)
+def update_expense(
+    expense_id: int,
+    data: ExpenseCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    expense = get_user_expense(db, expense_id, current_user.id)
+    for field, value in data.model_dump().items():
+        setattr(expense, field, value)
+    db.commit()
+    db.refresh(expense)
+    return expense
+
+
+@router.delete("/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_expense(
+    expense_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    expense = get_user_expense(db, expense_id, current_user.id)
+    db.delete(expense)
+    db.commit()
