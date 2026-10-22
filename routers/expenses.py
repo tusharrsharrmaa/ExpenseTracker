@@ -51,7 +51,7 @@ def list_expenses(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    return db.query(model.Expense).filter(model.Expense.user_IDgitgi == current_user.id).all()
+    return db.query(model.Expense).filter(model.Expense.user_ID == current_user.id).all()
 
 
 @router.get("/{expense_id}", response_model=ExpenseOut)

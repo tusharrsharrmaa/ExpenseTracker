@@ -13,11 +13,14 @@ router = APIRouter(prefix="/users", tags=["Users"])
 # SIGNUP (public)
 @router.post("", response_model=UserOut, status_code=201)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
+    if db.query(User).filter(User.username == user.username).first():
+        raise HTTPException(status_code=400, detail="Username already taken")
     if db.query(User).filter(User.email == user.email).first():
         raise HTTPException(status_code=400, detail="Email already exists")
 
     new_user = User(
         name=user.name,
+        username=user.username,
         email=user.email,
         password_hash=hash_password(user.password),
     )
@@ -26,7 +29,7 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Email already exists")
+        raise HTTPException(status_code=400, detail="Username or email already exists")
 
     db.refresh(new_user)
     return new_user

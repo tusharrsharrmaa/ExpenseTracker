@@ -14,6 +14,7 @@ class User(Base):
     name = Column(String(100), nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     password_hash = Column(String(500), nullable=False)
+    username = Column(String(30), unique=True, nullable=False, index=True) 
 
     expenses = relationship("Expense", cascade="all, delete-orphan")
     sessions = relationship("UserSession", cascade="all, delete-orphan")
