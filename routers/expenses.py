@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 import model
-from routers.auth import get_current_user  # CHECK: where is yours defined?
+from routers.auth import get_current_user  
 
 router = APIRouter(prefix="/expenses", tags=["Expenses"])
 
