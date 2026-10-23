@@ -46,12 +46,21 @@ def create_expense(
     return expense
 
 
+
 @router.get("/", response_model=List[ExpenseOut])
 def list_expenses(
+    amount: Optional[float] = None,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    return db.query(model.Expense).filter(model.Expense.user_ID == current_user.id).all()
+    query = db.query(model.Expense).filter(
+        model.Expense.user_ID == current_user.id
+    )
+
+    if amount is not None:
+        query = query.filter(model.Expense.amount == amount)
+
+    return query.all()
 
 
 @router.get("/{expense_id}", response_model=ExpenseOut)
