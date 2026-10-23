@@ -47,9 +47,13 @@ def create_expense(
 
 
 
+
 @router.get("/", response_model=List[ExpenseOut])
 def list_expenses(
     amount: Optional[float] = None,
+    min_amount: Optional[float] = None,
+    max_amount: Optional[float] = None,
+    category: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -57,10 +61,34 @@ def list_expenses(
         model.Expense.user_ID == current_user.id
     )
 
+    # Validate amount range
+    if min_amount is not None and max_amount is not None:
+        if min_amount > max_amount:
+            raise HTTPException(
+                status_code=400,
+                detail="min_amount cannot be greater than max_amount",
+            )
+
+    # Exact amount
     if amount is not None:
         query = query.filter(model.Expense.amount == amount)
 
+    # Minimum amount
+    if min_amount is not None:
+        query = query.filter(model.Expense.amount >= min_amount)
+
+    # Maximum amount
+    if max_amount is not None:
+        query = query.filter(model.Expense.amount <= max_amount)
+
+    # Category (case-insensitive exact match)
+    if category is not None:
+        query = query.filter(
+            model.Expense.category.ilike(category)
+        )
+
     return query.all()
+
 
 
 @router.get("/{expense_id}", response_model=ExpenseOut)
