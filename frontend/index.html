@@ -15,6 +15,7 @@
   h2 { margin:0 0 14px; font-size:1.05rem; }
   input, select, button { font:inherit; padding:9px 12px; border:1px solid var(--line); border-radius:8px; }
   input, select { width:100%; }
+  input:invalid:not(:placeholder-shown) { border-color:var(--danger); }
   button { background:var(--brand); color:#fff; border:none; cursor:pointer; }
   button.ghost { background:transparent; color:var(--brand); border:1px solid var(--brand); }
   button.danger { background:var(--danger); }
@@ -83,11 +84,11 @@
 
     <section class="card">
       <h2 id="formTitle">Add expense</h2>
-      <form id="expenseForm">
+      <form id="expenseForm" novalidate>
         <div class="row">
-          <input id="eTitle" placeholder="Title (e.g. Lunch)" required>
-          <input id="eAmount" type="number" step="0.01" min="0" placeholder="Amount" required>
-          <input id="eCategory" placeholder="Category (e.g. Food)">
+          <input id="eTitle" placeholder="Title (e.g. Lunch)" required minlength="2" maxlength="100">
+          <input id="eAmount" type="number" step="0.01" min="0.01" max="1000000" placeholder="Amount (max 10,00,000)" required>
+          <input id="eCategory" placeholder="Category (e.g. Food)" pattern="[A-Za-z ]+" title="Letters only, no numbers" maxlength="50">
         </div>
         <div class="actions">
           <button type="submit" id="eSubmit">Add</button>
@@ -110,23 +111,25 @@
 <script>
 /* ============================================================
    CONFIG — change these to match YOUR API.
-   This is the only place you should need to edit.
    ============================================================ */
-const API_BASE = "https://expense-tracker-api-m93a.onrender.com";   // works locally and on Render when served by FastAPI
+const API_BASE = "https://expense-tracker-api-m93a.onrender.com";
 
 const ROUTES = {
-  register: { method: "POST",   path: "/users/" },          // JSON body: name, email, password
-  login:    { method: "POST",   path: "/auth/login" },      // JSON body: email, password
+  register: { method: "POST",   path: "/users/" },
+  login:    { method: "POST",   path: "/auth/login" },
   logout:   { method: "POST",   path: "/auth/logout" },
   list:     { method: "GET",    path: "/expenses/" },
   create:   { method: "POST",   path: "/expenses/" },
   update:   (id) => ({ method: "PUT",    path: `/expenses/${id}` }),
   remove:   (id) => ({ method: "DELETE", path: `/expenses/${id}` }),
-  summary:  { method: "GET",    path: "/expenses/summary" } // gets ?month=&year= (optional)
+  summary:  { method: "GET",    path: "/expenses/summary" }
 };
 
 // Field names your expense JSON uses:
 const F = { id: "id", title: "title", amount: "amount", category: "category", date: "expense_date" };
+
+// Input limits (keep these the same as your backend schema)
+const MAX_AMOUNT = 1000000;
 /* ============================================================ */
 
 const $ = (id) => document.getElementById(id);
@@ -156,7 +159,9 @@ async function api(route, { body, form, query } = {}) {
     let detail = res.statusText;
     try {
       const j = await res.json();
-      detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+      if (typeof j.detail === "string") detail = j.detail;
+      else if (Array.isArray(j.detail)) detail = j.detail.map((d) => d.msg).join("; ");
+      else detail = JSON.stringify(j.detail);
     } catch {}
     throw new Error(`${res.status}: ${detail}`);
   }
@@ -187,14 +192,15 @@ $("authForm").onsubmit = async (e) => {
   const email = $("email").value.trim(), password = $("password").value;
   try {
     if (registerMode) {
-      // Your API needs both "name" and "username".
       await api(ROUTES.register, { body: { name: $("fullname").value.trim(), username: $("name").value.trim(), email, password } });
       show("Account created. Now log in.", "ok");
       registerMode = false; renderAuthMode();
       return;
     }
-    // Your login route takes JSON with email + password
     const data = await api(ROUTES.login, { body: { email, password } });
+    if (!data || !data.access_token) {
+      throw new Error("Server returned no token. Check API_BASE and the backend.");
+    }
     token = data.access_token;
     localStorage.setItem("token", token);
     $("password").value = "";
@@ -209,7 +215,7 @@ function doLocalLogout() {
   $("logoutBtn").classList.add("hidden");
 }
 $("logoutBtn").onclick = async () => {
-  try { await api(ROUTES.logout); } catch {}   // revokes the session on the server
+  try { await api(ROUTES.logout); } catch {}
   doLocalLogout();
 };
 
@@ -234,7 +240,6 @@ async function loadAll() {
 
 function fmt(n) { return "₹" + Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
-/* Finds the date field even if it isn't named exactly "expense_date" */
 function getDate(x) {
   let v = x[F.date];
   if (!v) { const k = Object.keys(x).find((k) => /date|created|time/i.test(k)); if (k) v = x[k]; }
@@ -246,10 +251,7 @@ function renderTable() {
   $("empty").classList.toggle("hidden", expenses.length > 0);
   for (const x of expenses) {
     const tr = document.createElement("tr");
-    const cells = [
-      getDate(x),
-      x[F.title], x[F.category] || "—"
-    ];
+    const cells = [getDate(x), x[F.title], x[F.category] || "—"];
     cells.forEach((v) => { const td = document.createElement("td"); td.textContent = v; tr.appendChild(td); });
 
     const amt = document.createElement("td"); amt.className = "amount"; amt.textContent = fmt(x[F.amount]); tr.appendChild(amt);
@@ -264,8 +266,6 @@ function renderTable() {
   }
 }
 
-/* Monthly summary: computed in the browser from the list, so it works
-   even if your /summary response shape is different from what I guessed. */
 function loadSummary() {
   const [y, m] = ($("monthPicker").value || "").split("-");
   const inMonth = expenses.filter((x) => getDate(x).startsWith(`${y}-${m}`));
@@ -290,14 +290,30 @@ function loadSummary() {
 }
 $("monthPicker").onchange = loadSummary;
 
-/* ---------- create / edit / delete ---------- */
+/* ---------- create / edit / delete (with validation) ---------- */
 $("expenseForm").onsubmit = async (e) => {
   e.preventDefault(); clearMsg();
-  // Note: no date / user id sent — your server generates those.
+
+  const title = $("eTitle").value.trim();
+  const amountText = $("eAmount").value.trim();
+  const amount = parseFloat(amountText);
+  const category = $("eCategory").value.trim();
+
+  if (title.length < 2 || title.length > 100)
+    return show("Title must be 2 to 100 characters.");
+  if (!Number.isFinite(amount) || amount <= 0)
+    return show("Amount must be greater than 0.");
+  if (amount > MAX_AMOUNT)
+    return show("Amount cannot be more than ₹10,00,000.");
+  if (!/^\d+(\.\d{1,2})?$/.test(amountText))
+    return show("Amount can have at most 2 decimal places.");
+  if (category && !/^[A-Za-z ]{1,50}$/.test(category))
+    return show("Category must be letters only (no numbers or symbols).");
+
   const body = {
-    [F.title]: $("eTitle").value.trim(),
-    [F.amount]: parseFloat($("eAmount").value),
-    [F.category]: $("eCategory").value.trim() || null
+    [F.title]: title,
+    [F.amount]: amount,
+    [F.category]: category || null
   };
   try {
     if (editingId !== null) await api(ROUTES.update(editingId), { body });
