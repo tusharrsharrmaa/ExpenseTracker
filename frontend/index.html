@@ -112,7 +112,7 @@
    CONFIG — change these to match YOUR API.
    This is the only place you should need to edit.
    ============================================================ */
-const API_BASE = window.location.origin;   // works locally and on Render when served by FastAPI
+const API_BASE = "https://expense-tracker-api-m93a.onrender.com";   // works locally and on Render when served by FastAPI
 
 const ROUTES = {
   register: { method: "POST",   path: "/users/" },          // JSON body: name, email, password

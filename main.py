@@ -15,6 +15,14 @@ app = FastAPI(
     description="Track expenses per user with JWT authentication.",
     version="1.0.0",
 )
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://expensetracker-sydz.onrender.com"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(auth.router)
 app.include_router(users.router)
