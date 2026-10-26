@@ -4,20 +4,20 @@ const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('set_user')
-    return saved ? JSON.parse(saved) : null
+    const stored = localStorage.getItem('trackerUser')
+    return stored ? JSON.parse(stored) : null
   })
 
   const value = useMemo(
     () => ({
       user,
       login(nextUser) {
+        localStorage.setItem('trackerUser', JSON.stringify(nextUser))
         setUser(nextUser)
-        localStorage.setItem('set_user', JSON.stringify(nextUser))
       },
       logout() {
+        localStorage.removeItem('trackerUser')
         setUser(null)
-        localStorage.removeItem('set_user')
       },
     }),
     [user],

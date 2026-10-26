@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-
+from fastapi.staticfiles import StaticFiles
 from database import engine, Base
 import model
 from routers import auth, expenses, users
@@ -37,3 +37,6 @@ def validation_handler(request: Request, exc: RequestValidationError):
 @app.get("/", tags=["Health"])
 def root():
     return {"message": "Expense Tracker API is running"}
+
+
+app.mount("/app", StaticFiles(directory="frontend", html=True), name="frontend")

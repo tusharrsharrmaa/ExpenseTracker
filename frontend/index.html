@@ -1,13 +1,335 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Smart Expense Tracker</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Expense Tracker</title>
+<style>
+  :root { --bg:#f5f6fa; --card:#fff; --ink:#1f2430; --muted:#6b7280; --brand:#4f46e5; --danger:#dc2626; --ok:#16a34a; --line:#e5e7eb; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--brand); color:#fff; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; }
+  header h1 { margin:0; font-size:1.2rem; }
+  main { max-width:900px; margin:24px auto; padding:0 16px; }
+  .card { background:var(--card); border-radius:12px; padding:20px; margin-bottom:20px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  h2 { margin:0 0 14px; font-size:1.05rem; }
+  input, select, button { font:inherit; padding:9px 12px; border:1px solid var(--line); border-radius:8px; }
+  input, select { width:100%; }
+  button { background:var(--brand); color:#fff; border:none; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--brand); border:1px solid var(--brand); }
+  button.danger { background:var(--danger); }
+  button.small { padding:5px 10px; font-size:.85rem; }
+  .row { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin-bottom:10px; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:10px 8px; border-bottom:1px solid var(--line); font-size:.92rem; }
+  th { color:var(--muted); font-weight:600; }
+  .amount { font-variant-numeric:tabular-nums; font-weight:600; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
+  .stat { background:var(--bg); border-radius:10px; padding:14px; }
+  .stat b { display:block; font-size:1.4rem; margin-top:4px; }
+  .msg { padding:10px 12px; border-radius:8px; margin-bottom:12px; display:none; font-size:.9rem; }
+  .msg.err { display:block; background:#fee2e2; color:#991b1b; }
+  .msg.ok  { display:block; background:#dcfce7; color:#166534; }
+  .hidden { display:none !important; }
+  .muted { color:var(--muted); font-size:.9rem; }
+  .bar { height:8px; background:var(--brand); border-radius:4px; margin-top:4px; }
+  a.link { color:var(--brand); cursor:pointer; text-decoration:underline; }
+  .pw-wrap { position:relative; }
+  .eye { position:absolute; right:4px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--muted); padding:6px 8px; cursor:pointer; font-size:1.1rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>💸 Expense Tracker</h1>
+  <button id="logoutBtn" class="ghost hidden" style="color:#fff;border-color:#fff">Logout</button>
+</header>
+
+<main>
+  <div id="msg" class="msg"></div>
+
+  <!-- ===== AUTH VIEW ===== -->
+  <section id="authView" class="card">
+    <h2 id="authTitle">Login</h2>
+    <form id="authForm">
+      <div class="row">
+        <input id="fullname" placeholder="Name" class="hidden">
+        <input id="name" placeholder="Username" class="hidden">
+        <input id="email" type="email" placeholder="Email" required>
+        <div class="pw-wrap">
+          <input id="password" type="password" placeholder="Password" required style="padding-right:44px">
+          <button type="button" id="eyeBtn" class="eye" aria-label="Show or hide password">👁</button>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit" id="authSubmit">Login</button>
+        <span class="muted"><span id="toggleText">No account?</span> <a class="link" id="toggleLink">Register</a></span>
+      </div>
+    </form>
+  </section>
+
+  <!-- ===== APP VIEW ===== -->
+  <div id="appView" class="hidden">
+
+    <section class="card">
+      <h2>This month</h2>
+      <div class="row" style="max-width:260px">
+        <input type="month" id="monthPicker">
+      </div>
+      <div class="stats" id="stats"></div>
+      <div id="catBars" style="margin-top:16px"></div>
+    </section>
+
+    <section class="card">
+      <h2 id="formTitle">Add expense</h2>
+      <form id="expenseForm">
+        <div class="row">
+          <input id="eTitle" placeholder="Title (e.g. Lunch)" required>
+          <input id="eAmount" type="number" step="0.01" min="0" placeholder="Amount" required>
+          <input id="eCategory" placeholder="Category (e.g. Food)">
+        </div>
+        <div class="actions">
+          <button type="submit" id="eSubmit">Add</button>
+          <button type="button" class="ghost hidden" id="eCancel">Cancel edit</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Expenses</h2>
+      <table>
+        <thead><tr><th>Date</th><th>Title</th><th>Category</th><th>Amount</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p id="empty" class="muted hidden">No expenses yet. Add your first one above.</p>
+    </section>
+  </div>
+</main>
+
+<script>
+/* ============================================================
+   CONFIG — change these to match YOUR API.
+   This is the only place you should need to edit.
+   ============================================================ */
+const API_BASE = window.location.origin;   // works locally and on Render when served by FastAPI
+
+const ROUTES = {
+  register: { method: "POST",   path: "/users/" },          // JSON body: name, email, password
+  login:    { method: "POST",   path: "/auth/login" },      // JSON body: email, password
+  logout:   { method: "POST",   path: "/auth/logout" },
+  list:     { method: "GET",    path: "/expenses/" },
+  create:   { method: "POST",   path: "/expenses/" },
+  update:   (id) => ({ method: "PUT",    path: `/expenses/${id}` }),
+  remove:   (id) => ({ method: "DELETE", path: `/expenses/${id}` }),
+  summary:  { method: "GET",    path: "/expenses/summary" } // gets ?month=&year= (optional)
+};
+
+// Field names your expense JSON uses:
+const F = { id: "id", title: "title", amount: "amount", category: "category", date: "expense_date" };
+/* ============================================================ */
+
+const $ = (id) => document.getElementById(id);
+let token = localStorage.getItem("token");
+let registerMode = false;
+let editingId = null;
+let expenses = [];
+
+/* ---------- helpers ---------- */
+function show(text, type = "err") {
+  const m = $("msg"); m.textContent = text; m.className = "msg " + type;
+  if (type === "ok") setTimeout(() => (m.className = "msg"), 2500);
+}
+function clearMsg() { $("msg").className = "msg"; }
+
+async function api(route, { body, form, query } = {}) {
+  const headers = {};
+  if (token) headers["Authorization"] = "Bearer " + token;
+  let payload;
+  if (form)      { headers["Content-Type"] = "application/x-www-form-urlencoded"; payload = new URLSearchParams(form); }
+  else if (body) { headers["Content-Type"] = "application/json"; payload = JSON.stringify(body); }
+  const qs = query ? "?" + new URLSearchParams(query) : "";
+  const res = await fetch(API_BASE + route.path + qs, { method: route.method, headers, body: payload });
+
+  if (res.status === 401 && token) { doLocalLogout(); throw new Error("Session expired. Please log in again."); }
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const j = await res.json();
+      detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+    } catch {}
+    throw new Error(`${res.status}: ${detail}`);
+  }
+  return res.status === 204 ? null : res.json().catch(() => null);
+}
+
+/* ---------- show / hide password ---------- */
+$("eyeBtn").onclick = () => {
+  const p = $("password");
+  const hidden = p.type === "password";
+  p.type = hidden ? "text" : "password";
+  $("eyeBtn").textContent = hidden ? "🙈" : "👁";
+};
+
+/* ---------- auth ---------- */
+function renderAuthMode() {
+  $("authTitle").textContent = registerMode ? "Register" : "Login";
+  $("authSubmit").textContent = registerMode ? "Create account" : "Login";
+  $("toggleText").textContent = registerMode ? "Have an account?" : "No account?";
+  $("toggleLink").textContent = registerMode ? "Login" : "Register";
+  $("name").classList.toggle("hidden", !registerMode);
+  $("fullname").classList.toggle("hidden", !registerMode);
+}
+$("toggleLink").onclick = () => { registerMode = !registerMode; renderAuthMode(); clearMsg(); };
+
+$("authForm").onsubmit = async (e) => {
+  e.preventDefault(); clearMsg();
+  const email = $("email").value.trim(), password = $("password").value;
+  try {
+    if (registerMode) {
+      // Your API needs both "name" and "username".
+      await api(ROUTES.register, { body: { name: $("fullname").value.trim(), username: $("name").value.trim(), email, password } });
+      show("Account created. Now log in.", "ok");
+      registerMode = false; renderAuthMode();
+      return;
+    }
+    // Your login route takes JSON with email + password
+    const data = await api(ROUTES.login, { body: { email, password } });
+    token = data.access_token;
+    localStorage.setItem("token", token);
+    $("password").value = "";
+    enterApp();
+  } catch (err) { show(err.message); }
+};
+
+function doLocalLogout() {
+  token = null; localStorage.removeItem("token");
+  $("authView").classList.remove("hidden");
+  $("appView").classList.add("hidden");
+  $("logoutBtn").classList.add("hidden");
+}
+$("logoutBtn").onclick = async () => {
+  try { await api(ROUTES.logout); } catch {}   // revokes the session on the server
+  doLocalLogout();
+};
+
+/* ---------- app ---------- */
+function enterApp() {
+  $("authView").classList.add("hidden");
+  $("appView").classList.remove("hidden");
+  $("logoutBtn").classList.remove("hidden");
+  const now = new Date();
+  if (!$("monthPicker").value)
+    $("monthPicker").value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  loadAll();
+}
+
+async function loadAll() {
+  try {
+    expenses = (await api(ROUTES.list)) || [];
+    renderTable();
+    loadSummary();
+  } catch (err) { show(err.message); }
+}
+
+function fmt(n) { return "₹" + Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+/* Finds the date field even if it isn't named exactly "expense_date" */
+function getDate(x) {
+  let v = x[F.date];
+  if (!v) { const k = Object.keys(x).find((k) => /date|created|time/i.test(k)); if (k) v = x[k]; }
+  return (v || "").toString().slice(0, 10);
+}
+
+function renderTable() {
+  const tbody = $("rows"); tbody.innerHTML = "";
+  $("empty").classList.toggle("hidden", expenses.length > 0);
+  for (const x of expenses) {
+    const tr = document.createElement("tr");
+    const cells = [
+      getDate(x),
+      x[F.title], x[F.category] || "—"
+    ];
+    cells.forEach((v) => { const td = document.createElement("td"); td.textContent = v; tr.appendChild(td); });
+
+    const amt = document.createElement("td"); amt.className = "amount"; amt.textContent = fmt(x[F.amount]); tr.appendChild(amt);
+
+    const act = document.createElement("td"); act.className = "actions";
+    const ed = document.createElement("button"); ed.className = "small ghost"; ed.textContent = "Edit";
+    ed.onclick = () => startEdit(x);
+    const del = document.createElement("button"); del.className = "small danger"; del.textContent = "Delete";
+    del.onclick = () => deleteExpense(x[F.id]);
+    act.append(ed, del); tr.appendChild(act);
+    tbody.appendChild(tr);
+  }
+}
+
+/* Monthly summary: computed in the browser from the list, so it works
+   even if your /summary response shape is different from what I guessed. */
+function loadSummary() {
+  const [y, m] = ($("monthPicker").value || "").split("-");
+  const inMonth = expenses.filter((x) => getDate(x).startsWith(`${y}-${m}`));
+  const total = inMonth.reduce((s, x) => s + Number(x[F.amount]), 0);
+
+  const byCat = {};
+  inMonth.forEach((x) => { const c = x[F.category] || "Uncategorised"; byCat[c] = (byCat[c] || 0) + Number(x[F.amount]); });
+
+  $("stats").innerHTML = `
+    <div class="stat">Total spent<b>${fmt(total)}</b></div>
+    <div class="stat">Expenses<b>${inMonth.length}</b></div>
+    <div class="stat">Average<b>${fmt(inMonth.length ? total / inMonth.length : 0)}</b></div>`;
+
+  const bars = $("catBars"); bars.innerHTML = "";
+  Object.entries(byCat).sort((a, b) => b[1] - a[1]).forEach(([cat, sum]) => {
+    const div = document.createElement("div"); div.style.marginBottom = "10px";
+    const label = document.createElement("div"); label.className = "muted";
+    label.textContent = `${cat} — ${fmt(sum)}`;
+    const bar = document.createElement("div"); bar.className = "bar"; bar.style.width = (total ? (sum / total) * 100 : 0) + "%";
+    div.append(label, bar); bars.appendChild(div);
+  });
+}
+$("monthPicker").onchange = loadSummary;
+
+/* ---------- create / edit / delete ---------- */
+$("expenseForm").onsubmit = async (e) => {
+  e.preventDefault(); clearMsg();
+  // Note: no date / user id sent — your server generates those.
+  const body = {
+    [F.title]: $("eTitle").value.trim(),
+    [F.amount]: parseFloat($("eAmount").value),
+    [F.category]: $("eCategory").value.trim() || null
+  };
+  try {
+    if (editingId !== null) await api(ROUTES.update(editingId), { body });
+    else await api(ROUTES.create, { body });
+    show(editingId !== null ? "Expense updated." : "Expense added.", "ok");
+    resetForm(); loadAll();
+  } catch (err) { show(err.message); }
+};
+
+function startEdit(x) {
+  editingId = x[F.id];
+  $("eTitle").value = x[F.title]; $("eAmount").value = x[F.amount]; $("eCategory").value = x[F.category] || "";
+  $("formTitle").textContent = "Edit expense"; $("eSubmit").textContent = "Save";
+  $("eCancel").classList.remove("hidden");
+  window.scrollTo({ top: $("expenseForm").offsetTop - 80, behavior: "smooth" });
+}
+function resetForm() {
+  editingId = null; $("expenseForm").reset();
+  $("formTitle").textContent = "Add expense"; $("eSubmit").textContent = "Add";
+  $("eCancel").classList.add("hidden");
+}
+$("eCancel").onclick = resetForm;
+
+async function deleteExpense(id) {
+  if (!confirm("Delete this expense?")) return;
+  try { await api(ROUTES.remove(id)); show("Deleted.", "ok"); loadAll(); }
+  catch (err) { show(err.message); }
+}
+
+/* ---------- boot ---------- */
+renderAuthMode();
+if (token) enterApp();
+</script>
+</body>
 </html>

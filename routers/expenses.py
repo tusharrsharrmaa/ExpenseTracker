@@ -1,4 +1,5 @@
 from typing import List, Optional
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -19,8 +20,8 @@ class ExpenseCreate(BaseModel):
 
 class ExpenseOut(ExpenseCreate):
     id: int
+    expense_date: date
     model_config = {"from_attributes": True}
-
 
 def get_user_expense(db: Session, expense_id: int, user_id: int):
     expense = (
