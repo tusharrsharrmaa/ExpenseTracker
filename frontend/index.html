@@ -124,7 +124,7 @@ const ROUTES = {
   register: { method: "POST",   path: "/users/" },
   login:    { method: "POST",   path: "/auth/login" },
   logout:   { method: "POST",   path: "/auth/logout" },
-  me:       { method: "GET",    path: "/auth/me" },          // returns the logged-in user's username
+  me:       { method: "GET",    path: "/auth/me" },
   list:     { method: "GET",    path: "/expenses/" },
   create:   { method: "POST",   path: "/expenses/" },
   update:   (id) => ({ method: "PUT",    path: `/expenses/${id}` }),
@@ -355,7 +355,7 @@ function loadSummary() {
   $("stats").innerHTML = `
     <div class="stat">Total spent<b>${fmt(total)}</b></div>
     <div class="stat">Expenses<b>${inMonth.length}</b></div>
-    <div class="stat">Average<b>${fmt(inMonth.length ? total / inMonth.length : 0)}</b></div>`;
+    `;
 
   const bars = $("catBars"); bars.innerHTML = "";
   Object.entries(byCat).sort((a, b) => b[1] - a[1]).forEach(([cat, sum]) => {
