@@ -20,7 +20,7 @@ def clean_email(v: str) -> str:
 Amount = Annotated[float, Field(gt=0, le=10_000_000, allow_inf_nan=False)]
 Category = Annotated[str, Field(min_length=1, max_length=50), AfterValidator(clean_category)]
 Email = Annotated[EmailStr, AfterValidator(clean_email)]
-Password = Annotated[str, Field(min_length=8, max_length=72)]
+Password = Annotated[str, Field(min_length=4, max_length=72)]
 Username = Annotated[
     str,
     Field(min_length=3, max_length=30, pattern=r"^[a-zA-Z0-9_]+$"),

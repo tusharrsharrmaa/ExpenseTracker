@@ -8,6 +8,10 @@ import model
 from routers import auth, expenses, users
 from exceptions import BusinessRuleError
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from limiter import limiter
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(

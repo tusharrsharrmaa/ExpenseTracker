@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey, Boolean, DateTime
+from sqlalchemy import Column, Integer, String , Numeric , Date, ForeignKey, Boolean, DateTime
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -25,7 +25,7 @@ class Expense(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(100), nullable=True)
-    amount = Column(Float, nullable=False)
+    amount = Column(Numeric, nullable=False)
     category = Column(String(100), nullable=False)
     user_ID = Column(Integer, ForeignKey("users.id"), nullable=False)
     expense_date = Column(Date, default=date.today)

@@ -38,13 +38,19 @@
   a.link { color:var(--brand); cursor:pointer; text-decoration:underline; }
   .pw-wrap { position:relative; }
   .eye { position:absolute; right:4px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--muted); padding:6px 8px; cursor:pointer; font-size:1.1rem; }
+  .hdr-right { display:flex; align-items:center; gap:12px; }
+  .chip { background:rgba(255,255,255,.18); padding:6px 12px; border-radius:999px; font-size:.9rem; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  button:disabled { opacity:.65; cursor:not-allowed; }
 </style>
 </head>
 <body>
 
 <header>
   <h1>💸 Expense Tracker</h1>
-  <button id="logoutBtn" class="ghost hidden" style="color:#fff;border-color:#fff">Logout</button>
+  <div class="hdr-right">
+    <span id="userChip" class="chip hidden"></span>
+    <button id="logoutBtn" class="ghost hidden" style="color:#fff;border-color:#fff">Logout</button>
+  </div>
 </header>
 
 <main>
@@ -53,7 +59,7 @@
   <!-- ===== AUTH VIEW ===== -->
   <section id="authView" class="card">
     <h2 id="authTitle">Login</h2>
-    <form id="authForm">
+    <form id="authForm" novalidate>
       <div class="row">
         <input id="fullname" placeholder="Name" class="hidden">
         <input id="name" placeholder="Username" class="hidden">
@@ -118,6 +124,7 @@ const ROUTES = {
   register: { method: "POST",   path: "/users/" },
   login:    { method: "POST",   path: "/auth/login" },
   logout:   { method: "POST",   path: "/auth/logout" },
+  me:       { method: "GET",    path: "/auth/me" },          // returns the logged-in user's username
   list:     { method: "GET",    path: "/expenses/" },
   create:   { method: "POST",   path: "/expenses/" },
   update:   (id) => ({ method: "PUT",    path: `/expenses/${id}` }),
@@ -145,6 +152,28 @@ function show(text, type = "err") {
 }
 function clearMsg() { $("msg").className = "msg"; }
 
+/* ---------- friendly error messages ---------- */
+const FIELD_LABELS = { email: "Email", password: "Password", username: "Username", name: "Name", title: "Title", amount: "Amount", category: "Category" };
+
+function cleanMsg(m) {
+  return String(m || "").replace(/^Value error,\s*/i, "").replace(/^./, (c) => c.toUpperCase());
+}
+
+function friendlyError(status, detail) {
+  if (Array.isArray(detail)) {
+    return detail.map((d) => {
+      const field = FIELD_LABELS[d.loc && d.loc[d.loc.length - 1]];
+      const msg = cleanMsg(d.msg);
+      return field ? `${field}: ${msg}` : msg;
+    }).join(" • ");
+  }
+  if (typeof detail === "string" && detail && status < 500) return cleanMsg(detail);
+  if (status === 404) return "We couldn't find what you were looking for.";
+  if (status === 429) return "Too many attempts. Please wait a moment and try again.";
+  if (status >= 500) return "Something went wrong on our side. Please try again in a moment.";
+  return "Something went wrong. Please try again.";
+}
+
 async function api(route, { body, form, query } = {}) {
   const headers = {};
   if (token) headers["Authorization"] = "Bearer " + token;
@@ -152,18 +181,19 @@ async function api(route, { body, form, query } = {}) {
   if (form)      { headers["Content-Type"] = "application/x-www-form-urlencoded"; payload = new URLSearchParams(form); }
   else if (body) { headers["Content-Type"] = "application/json"; payload = JSON.stringify(body); }
   const qs = query ? "?" + new URLSearchParams(query) : "";
-  const res = await fetch(API_BASE + route.path + qs, { method: route.method, headers, body: payload });
 
-  if (res.status === 401 && token) { doLocalLogout(); throw new Error("Session expired. Please log in again."); }
+  let res;
+  try {
+    res = await fetch(API_BASE + route.path + qs, { method: route.method, headers, body: payload });
+  } catch {
+    throw new Error("Can't reach the server. Check your internet connection and try again. If the server was idle, give it a few seconds to wake up.");
+  }
+
+  if (res.status === 401 && token) { doLocalLogout(); throw new Error("Your session has expired. Please log in again."); }
   if (!res.ok) {
-    let detail = res.statusText;
-    try {
-      const j = await res.json();
-      if (typeof j.detail === "string") detail = j.detail;
-      else if (Array.isArray(j.detail)) detail = j.detail.map((d) => d.msg).join("; ");
-      else detail = JSON.stringify(j.detail);
-    } catch {}
-    throw new Error(`${res.status}: ${detail}`);
+    let detail = null;
+    try { detail = (await res.json()).detail; } catch {}
+    throw new Error(friendlyError(res.status, detail));
   }
   return res.status === 204 ? null : res.json().catch(() => null);
 }
@@ -187,32 +217,79 @@ function renderAuthMode() {
 }
 $("toggleLink").onclick = () => { registerMode = !registerMode; renderAuthMode(); clearMsg(); };
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+function fail(msg, fieldId) {
+  show(msg);
+  if (fieldId) $(fieldId).focus();
+}
+
 $("authForm").onsubmit = async (e) => {
   e.preventDefault(); clearMsg();
   const email = $("email").value.trim(), password = $("password").value;
+  const fullname = $("fullname").value.trim(), username = $("name").value.trim();
+
+  // Check the form the way a real product would, one clear message at a time
+  if (registerMode) {
+    if (!/^[A-Za-z][A-Za-z .'-]{1,49}$/.test(fullname))
+      return fail("Please enter your name (letters only, at least 2 characters).", "fullname");
+    if (!/^[A-Za-z0-9_]{3,20}$/.test(username))
+      return fail("Username must be 3 to 20 characters: letters, numbers or underscore only.", "name");
+  }
+  if (!email) return fail("Please enter your email address.", "email");
+  if (!EMAIL_RE.test(email)) return fail("That doesn't look like a valid email address.", "email");
+  if (!password) return fail("Please enter your password.", "password");
+  if (registerMode && password.length < 8) return fail("Password must be at least 8 characters.", "password");
+
+  const btn = $("authSubmit");
+  btn.disabled = true;
+  btn.textContent = registerMode ? "Creating account…" : "Logging in…";
   try {
     if (registerMode) {
-      await api(ROUTES.register, { body: { name: $("fullname").value.trim(), username: $("name").value.trim(), email, password } });
-      show("Account created. Now log in.", "ok");
+      await api(ROUTES.register, { body: { name: fullname, username, email, password } });
+      show("Account created. Please log in.", "ok");
       registerMode = false; renderAuthMode();
       return;
     }
+    token = null;   // make sure an old token is not sent with a fresh login
     const data = await api(ROUTES.login, { body: { email, password } });
     if (!data || !data.access_token) {
-      throw new Error("Server returned no token. Check API_BASE and the backend.");
+      throw new Error("Login did not work. Please try again in a moment.");
     }
     token = data.access_token;
     localStorage.setItem("token", token);
+    localStorage.setItem("userLabel", email);   // fallback label until the username loads
     $("password").value = "";
     enterApp();
   } catch (err) { show(err.message); }
+  finally { btn.disabled = false; renderAuthMode(); }
 };
 
 function doLocalLogout() {
-  token = null; localStorage.removeItem("token");
+  token = null;
+  localStorage.removeItem("token");
+  localStorage.removeItem("userLabel");
   $("authView").classList.remove("hidden");
   $("appView").classList.add("hidden");
   $("logoutBtn").classList.add("hidden");
+  $("userChip").classList.add("hidden");
+}
+
+/* Shows the logged-in username in the header */
+async function loadMe() {
+  let label = localStorage.getItem("userLabel");
+  try {
+    const me = await api(ROUTES.me);
+    if (me) {
+      label = me.username || me.name || me.email || label;
+      if (label) localStorage.setItem("userLabel", label);
+    }
+  } catch {}
+  if (!token) return;   // logged out while loading
+  if (label) {
+    $("userChip").textContent = "👤 " + label;
+    $("userChip").classList.remove("hidden");
+  }
 }
 $("logoutBtn").onclick = async () => {
   try { await api(ROUTES.logout); } catch {}
@@ -227,6 +304,7 @@ function enterApp() {
   const now = new Date();
   if (!$("monthPicker").value)
     $("monthPicker").value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  loadMe();
   loadAll();
 }
 

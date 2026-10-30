@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 from fastapi import Depends, HTTPException
@@ -20,7 +20,7 @@ if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY is not set. Check your .env file.")
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
 
 
 def utcnow() -> datetime:
@@ -36,9 +36,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def create_access_token(data: dict):
+def create_access_token(data: dict, expires_at: datetime):
     to_encode = data.copy()
-    to_encode.update({"exp": utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)})
+    to_encode["exp"] = expires_at
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
