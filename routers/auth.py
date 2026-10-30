@@ -41,7 +41,8 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     db.refresh(new_session)
 
     access_token = create_access_token(
-        data={"sub": str(user.id), "sid": new_session.id}
+        data={"sub": str(user.id), "sid": new_session.id},
+        expires_at=new_session.expires_at,
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
