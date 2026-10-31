@@ -13,7 +13,6 @@ from slowapi.errors import RateLimitExceeded
 
 from database import engine, Base
 import model
-
 from routers import auth, expenses, users
 
 from exceptions import BusinessRuleError
