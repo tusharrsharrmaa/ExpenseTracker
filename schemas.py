@@ -90,7 +90,7 @@ class ExpenseCreate(BaseModel):
 
     category: Category
 
-    expense_date: date | None = None
+    expense_date: date
 
 
 class ExpenseUpdate(BaseModel):
