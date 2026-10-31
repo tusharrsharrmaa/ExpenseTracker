@@ -1,12 +1,11 @@
-
 from datetime import timedelta
-
 from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
     status
 )
+from fastapi.security import HTTPAuthorizationCredentials
 
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
@@ -21,7 +20,7 @@ from security import (
     verify_password,
     create_access_token,
     decode_access_token,
-    oauth2_scheme,
+    bearer_scheme,
     utcnow,
 )
 
@@ -172,11 +171,14 @@ def login(
 
 @router.post("/logout")
 def logout(
-    token: str = Depends(oauth2_scheme),
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: Session = Depends(get_db)
 ):
 
     try:
+
+        # Get the raw token string (eyJ...)
+        token = credentials.credentials
 
         # Decode JWT token
         payload = decode_access_token(token)
@@ -232,11 +234,14 @@ def logout(
 # ==========================================
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: Session = Depends(get_db)
 ):
 
     try:
+
+        # Get the raw token string (eyJ...)
+        token = credentials.credentials
 
         # Decode JWT token
         payload = decode_access_token(token)

@@ -1,4 +1,3 @@
-
 import os
 
 from datetime import datetime, timezone
@@ -6,7 +5,7 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from jose import jwt, JWTError
 from passlib.context import CryptContext
@@ -134,23 +133,23 @@ def decode_access_token(token: str):
 
 
 # ==========================================
-# OAUTH2 BEARER TOKEN
+# BEARER TOKEN SCHEME
+# (gives the Authorize popup a single box
+#  where you paste the token)
 # ==========================================
 
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/auth/login"
-)
+bearer_scheme = HTTPBearer()
 
 
 # ==========================================
 # UNAUTHORIZED EXCEPTION
 # ==========================================
 
-def unauthorized():
+def unauthorized(detail: str = "Invalid or expired token"):
 
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid or expired token",
+        detail=detail,
         headers={
             "WWW-Authenticate": "Bearer"
         }
@@ -163,13 +162,14 @@ def unauthorized():
 # ==========================================
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: Session = Depends(get_db)
 ):
 
     try:
 
         # Step 1: Decode JWT
+        token = credentials.credentials
         payload = decode_access_token(token)
 
         if payload is None:
