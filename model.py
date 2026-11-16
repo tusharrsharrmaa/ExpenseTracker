@@ -1,4 +1,3 @@
-
 import uuid
 from datetime import date, datetime, timezone
 
@@ -18,10 +17,7 @@ from sqlalchemy.orm import relationship
 from database import Base
 
 
-# ==========================================
 # USER MODEL
-# ==========================================
-
 class User(Base):
 
     __tablename__ = "users"
@@ -112,12 +108,39 @@ class Expense(Base):
         nullable=False,
         default=date.today
     )
+        
+        # Expense description
+    note = Column(
+        String(255),
+        nullable=True
+    )
+
+    # Payment method
+    payment_method = Column(
+        String(30),
+        nullable=False,
+        default="Cash"
+    )
+    created_at = Column(
+    DateTime,
+    default=lambda: datetime.now(timezone.utc),
+    nullable=False
+    )
+
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
 
     # Each expense belongs to one user
     user = relationship(
         "User",
         back_populates="expenses"
     )
+    
+    
 
 
 # ==========================================

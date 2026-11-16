@@ -1,6 +1,5 @@
-
-from datetime import date
-from typing import Annotated
+from datetime import date , datetime
+from typing import Annotated, Literal
 
 from pydantic import (
     AfterValidator,
@@ -49,7 +48,12 @@ Category = Annotated[
     Field(min_length=1, max_length=50),
     AfterValidator(clean_category)
 ]
-
+PaymentMethod = Literal[
+    "cash",
+    "UPI",
+    "card",
+    "Net Banking"
+]
 Email = Annotated[
     EmailStr,
     AfterValidator(clean_email)
@@ -90,7 +94,13 @@ class ExpenseCreate(BaseModel):
 
     category: Category
 
-    expense_date: date
+    expense_date: date | None = None
+    payment_method : PaymentMethod = "cash"
+    
+    note: str | None = Field(
+        default = None,
+        max_length = 255
+    )
 
 
 class ExpenseUpdate(BaseModel):
@@ -109,6 +119,12 @@ class ExpenseUpdate(BaseModel):
     category: Category | None = None
 
     expense_date: date | None = None
+    payment_method: PaymentMethod | None = None
+
+    note: str | None = Field(
+        default=None,
+        max_length=255
+    )
 
 
 class ExpenseOut(BaseModel):
@@ -123,6 +139,10 @@ class ExpenseOut(BaseModel):
     category: str
     user_ID: int
     expense_date: date
+    payment_method: str
+    note: str | None
+    created_at: datetime
+    updated_at: datetime
 
 
 # ==========================================

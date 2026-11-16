@@ -84,8 +84,8 @@ def create_expense(
         values = data.model_dump(exclude_unset=True)
 
         # Remove date if None
-        if values.get("expense_date"):
-            values.pop("expense_date")
+        if values.get("expense_date") is None:
+            values.pop("expense_date" , None) 
 
         # User ID comes from JWT token
         values.pop("user_ID", None)
