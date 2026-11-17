@@ -1,3 +1,4 @@
+
 import uuid
 from datetime import date, datetime, timezone
 
@@ -17,7 +18,10 @@ from sqlalchemy.orm import relationship
 from database import Base
 
 
+# ==========================================
 # USER MODEL
+# ==========================================
+
 class User(Base):
 
     __tablename__ = "users"
@@ -108,8 +112,8 @@ class Expense(Base):
         nullable=False,
         default=date.today
     )
-        
-        # Expense description
+
+    # Optional expense description
     note = Column(
         String(255),
         nullable=True
@@ -121,12 +125,15 @@ class Expense(Base):
         nullable=False,
         default="Cash"
     )
+
+    # Expense creation timestamp
     created_at = Column(
-    DateTime,
-    default=lambda: datetime.now(timezone.utc),
-    nullable=False
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
     )
 
+    # Expense update timestamp
     updated_at = Column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
@@ -139,8 +146,6 @@ class Expense(Base):
         "User",
         back_populates="expenses"
     )
-    
-    
 
 
 # ==========================================
