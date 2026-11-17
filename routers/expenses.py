@@ -1,4 +1,5 @@
 
+import logging
 from typing import List, Optional
 
 from fastapi import (
@@ -22,6 +23,13 @@ from schemas import (
 
 from exceptions import BusinessRuleError
 from routers.auth import get_current_user
+
+
+# ==========================================
+# LOGGING
+# ==========================================
+
+logger = logging.getLogger(__name__)
 
 
 # ==========================================
@@ -83,9 +91,8 @@ def create_expense(
 
         values = data.model_dump(exclude_unset=True)
 
-        # Remove date if None
         if values.get("expense_date") is None:
-            values.pop("expense_date" , None) 
+            values.pop("expense_date", None)
 
         # User ID comes from JWT token
         values.pop("user_ID", None)
@@ -96,9 +103,7 @@ def create_expense(
         )
 
         db.add(expense)
-
         db.commit()
-
         db.refresh(expense)
 
         return expense
@@ -106,6 +111,10 @@ def create_expense(
     except SQLAlchemyError:
 
         db.rollback()
+
+        logger.exception(
+            "Database error while creating expense"
+        )
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -136,21 +145,18 @@ def list_expenses(
 
     # Validate amount
     if amount is not None and amount <= 0:
-
         raise HTTPException(
             status_code=400,
             detail="Amount must be greater than zero"
         )
 
     if min_amount is not None and min_amount < 0:
-
         raise HTTPException(
             status_code=400,
             detail="Minimum amount cannot be negative"
         )
 
     if max_amount is not None and max_amount < 0:
-
         raise HTTPException(
             status_code=400,
             detail="Maximum amount cannot be negative"
@@ -161,7 +167,6 @@ def list_expenses(
         and max_amount is not None
         and min_amount > max_amount
     ):
-
         raise HTTPException(
             status_code=400,
             detail="min_amount cannot be greater than max_amount"
@@ -176,26 +181,23 @@ def list_expenses(
 
         # Exact amount filter
         if amount is not None:
-
             query = query.filter(
                 model.Expense.amount == amount
             )
 
         # Minimum amount filter
         if min_amount is not None:
-
             query = query.filter(
                 model.Expense.amount >= min_amount
             )
 
         # Maximum amount filter
         if max_amount is not None:
-
             query = query.filter(
                 model.Expense.amount <= max_amount
             )
 
-        # Category search (case-insensitive)
+        # Category search
         if category is not None:
 
             category = category.strip()
@@ -221,6 +223,13 @@ def list_expenses(
         return expenses
 
     except SQLAlchemyError:
+
+        db.rollback()
+
+        # Print actual database exception in Render logs
+        logger.exception(
+            "Database error while fetching expenses"
+        )
 
         raise HTTPException(
             status_code=500,
@@ -261,6 +270,12 @@ def get_expense(
 
     except SQLAlchemyError:
 
+        db.rollback()
+
+        logger.exception(
+            "Database error while fetching single expense"
+        )
+
         raise HTTPException(
             status_code=500,
             detail="Database error while fetching expense"
@@ -288,14 +303,12 @@ def update_expense(
 
     try:
 
-        # Find user's expense
         expense = get_user_expense(
             db,
             expense_id,
             current_user.id
         )
 
-        # Get only provided fields
         changes = data.model_dump(
             exclude_unset=True
         )
@@ -303,9 +316,7 @@ def update_expense(
         # Prevent changing ownership
         changes.pop("user_ID", None)
 
-        # Check empty update
         if not changes:
-
             raise BusinessRuleError(
                 "Nothing to update"
             )
@@ -318,32 +329,28 @@ def update_expense(
         ):
 
             if field in changes and changes[field] is None:
-
                 raise BusinessRuleError(
                     f"{field} cannot be empty"
                 )
 
-        # Validate amount
         if "amount" in changes and changes["amount"] <= 0:
-
             raise BusinessRuleError(
                 "Amount must be greater than zero"
             )
 
-        # Validate category
-        if "category" in changes and not changes["category"].strip():
-
+        if (
+            "category" in changes
+            and not changes["category"].strip()
+        ):
             raise BusinessRuleError(
                 "Category cannot be empty"
             )
 
         # Update fields dynamically
         for field, value in changes.items():
-
             setattr(expense, field, value)
 
         db.commit()
-
         db.refresh(expense)
 
         return expense
@@ -363,6 +370,10 @@ def update_expense(
     except SQLAlchemyError:
 
         db.rollback()
+
+        logger.exception(
+            "Database error while updating expense"
+        )
 
         raise HTTPException(
             status_code=500,
@@ -390,7 +401,6 @@ def delete_expense(
 
     try:
 
-        # Find user's expense
         expense = get_user_expense(
             db,
             expense_id,
@@ -398,7 +408,6 @@ def delete_expense(
         )
 
         db.delete(expense)
-
         db.commit()
 
         return None
@@ -409,6 +418,10 @@ def delete_expense(
     except SQLAlchemyError:
 
         db.rollback()
+
+        logger.exception(
+            "Database error while deleting expense"
+        )
 
         raise HTTPException(
             status_code=500,
