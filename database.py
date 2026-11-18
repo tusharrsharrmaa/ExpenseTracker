@@ -25,8 +25,10 @@ if not DATABASE_URL:
 # ==========================================
 # SSL CERTIFICATE
 # ==========================================
-
-CA_PATH = os.path.join(BASE_DIR, "ca.pem")
+CA_PATH = os.getenv(
+    "CA_PATH",
+    os.path.join(BASE_DIR, "ca.pem")
+)
 
 if not os.path.isfile(CA_PATH):
     raise RuntimeError(

@@ -91,8 +91,8 @@ class Expense(Base):
     )
 
     amount = Column(
-        Numeric(10, 2),
-        nullable=False
+    Numeric(15, 2),
+    nullable=False
     )
 
     category = Column(
