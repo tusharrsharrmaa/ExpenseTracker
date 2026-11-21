@@ -1,6 +1,6 @@
 from datetime import date , datetime
 from typing import Annotated, Literal
-
+from enum import Enum
 from pydantic import (
     AfterValidator,
     BaseModel,
@@ -48,12 +48,13 @@ Category = Annotated[
     Field(min_length=1, max_length=50),
     AfterValidator(clean_category)
 ]
-PaymentMethod = Literal[
-    "cash",
-    "UPI",
-    "card",
-    "Net Banking"
-]
+
+
+class PaymentMethod(str, Enum):
+    cash = "cash"
+    upi = "upi"
+    card = "card"
+    net_banking = "net_banking"
 Email = Annotated[
     EmailStr,
     AfterValidator(clean_email)

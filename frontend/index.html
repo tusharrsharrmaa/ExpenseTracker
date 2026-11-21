@@ -41,6 +41,7 @@
   .hdr-right { display:flex; align-items:center; gap:12px; }
   .chip { background:rgba(255,255,255,.18); padding:6px 12px; border-radius:999px; font-size:.9rem; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   button:disabled { opacity:.65; cursor:not-allowed; }
+  label.lbl { display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px; }
 </style>
 </head>
 <body>
@@ -92,9 +93,26 @@
       <h2 id="formTitle">Add expense</h2>
       <form id="expenseForm" novalidate>
         <div class="row">
-          <input id="eTitle" placeholder="Title (e.g. Lunch)" required minlength="2" maxlength="100">
-          <input id="eAmount" type="number" step="0.01" min="0.01" max="1000000" placeholder="Amount (max 10,00,000)" required>
-          <input id="eCategory" placeholder="Category (e.g. Food)" pattern="[A-Za-z ]+" title="Letters only, no numbers" maxlength="50">
+          <div>
+            <label class="lbl" for="eTitle">Title</label>
+            <input id="eTitle" placeholder="Title (e.g. Lunch)" required minlength="2" maxlength="100">
+          </div>
+          <div>
+            <label class="lbl" for="eAmount">Amount</label>
+            <input id="eAmount" type="number" step="0.01" min="0.01" max="1000000" placeholder="Amount (max 10,00,000)" required>
+          </div>
+          <div>
+            <label class="lbl" for="eCategory">Category</label>
+            <input id="eCategory" placeholder="Category (e.g. Food)" pattern="[A-Za-z ]+" title="Letters only, no numbers" maxlength="50">
+          </div>
+          <div>
+            <label class="lbl" for="eDate">Date</label>
+            <input id="eDate" type="date">
+          </div>
+          <div>
+            <label class="lbl" for="eNote">Note</label>
+            <input id="eNote" placeholder="e.g. online order on Swiggy" maxlength="200">
+          </div>
         </div>
         <div class="actions">
           <button type="submit" id="eSubmit">Add</button>
@@ -106,7 +124,7 @@
     <section class="card">
       <h2>Expenses</h2>
       <table>
-        <thead><tr><th>Date</th><th>Title</th><th>Category</th><th>Amount</th><th></th></tr></thead>
+        <thead><tr><th>Date</th><th>Title</th><th>Category</th><th>Note</th><th>Amount</th><th></th></tr></thead>
         <tbody id="rows"></tbody>
       </table>
       <p id="empty" class="muted hidden">No expenses yet. Add your first one above.</p>
@@ -118,22 +136,35 @@
 /* ============================================================
    CONFIG — change these to match YOUR API.
    ============================================================ */
-const API_BASE = "https://expense-tracker-api-m93a.onrender.com";
+
+// Local testing uses your own backend; anywhere else uses Render.
+const API_BASE = ["localhost", "127.0.0.1"].includes(location.hostname)
+  ? "http://127.0.0.1:8000"
+  : "https://expense-tracker-api-g65h.onrender.com";
 
 const ROUTES = {
   register: { method: "POST",   path: "/users/" },
   login:    { method: "POST",   path: "/auth/login" },
   logout:   { method: "POST",   path: "/auth/logout" },
   me:       { method: "GET",    path: "/auth/me" },
-  list:     { method: "GET",    path: "/expenses/" },
-  create:   { method: "POST",   path: "/expenses/" },
+  list:     { method: "GET",    path: "/expenses" },
+  create:   { method: "POST",   path: "/expenses" },
   update:   (id) => ({ method: "PUT",    path: `/expenses/${id}` }),
   remove:   (id) => ({ method: "DELETE", path: `/expenses/${id}` }),
   summary:  { method: "GET",    path: "/expenses/summary" }
 };
 
-// Field names your expense JSON uses:
-const F = { id: "id", title: "title", amount: "amount", category: "category", date: "expense_date" };
+// Field names your expense JSON uses. They must match your backend schema
+// EXACTLY, including lowercase. If your schema calls the note "msg" or
+// "description", change only the word on the "note:" line.
+const F = {
+  id: "id",
+  title: "title",
+  amount: "amount",
+  category: "category",
+  date: "expense_date",
+  note: "note"
+};
 
 // Input limits (keep these the same as your backend schema)
 const MAX_AMOUNT = 1000000;
@@ -153,7 +184,11 @@ function show(text, type = "err") {
 function clearMsg() { $("msg").className = "msg"; }
 
 /* ---------- friendly error messages ---------- */
-const FIELD_LABELS = { email: "Email", password: "Password", username: "Username", name: "Name", title: "Title", amount: "Amount", category: "Category" };
+const FIELD_LABELS = {
+  email: "Email", password: "Password", username: "Username", name: "Name",
+  title: "Title", amount: "Amount", category: "Category",
+  expense_date: "Date", note: "Note"
+};
 
 function cleanMsg(m) {
   return String(m || "").replace(/^Value error,\s*/i, "").replace(/^./, (c) => c.toUpperCase());
@@ -229,7 +264,6 @@ $("authForm").onsubmit = async (e) => {
   const email = $("email").value.trim(), password = $("password").value;
   const fullname = $("fullname").value.trim(), username = $("name").value.trim();
 
-  // Check the form the way a real product would, one clear message at a time
   if (registerMode) {
     if (!/^[A-Za-z][A-Za-z .'-]{1,49}$/.test(fullname))
       return fail("Please enter your name (letters only, at least 2 characters).", "fullname");
@@ -329,7 +363,7 @@ function renderTable() {
   $("empty").classList.toggle("hidden", expenses.length > 0);
   for (const x of expenses) {
     const tr = document.createElement("tr");
-    const cells = [getDate(x), x[F.title], x[F.category] || "—"];
+    const cells = [getDate(x), x[F.title], x[F.category] || "—", x[F.note] || "—"];
     cells.forEach((v) => { const td = document.createElement("td"); td.textContent = v; tr.appendChild(td); });
 
     const amt = document.createElement("td"); amt.className = "amount"; amt.textContent = fmt(x[F.amount]); tr.appendChild(amt);
@@ -376,6 +410,8 @@ $("expenseForm").onsubmit = async (e) => {
   const amountText = $("eAmount").value.trim();
   const amount = parseFloat(amountText);
   const category = $("eCategory").value.trim();
+  const expenseDate = $("eDate").value;          // "YYYY-MM-DD" or ""
+  const note = $("eNote").value.trim();
 
   if (title.length < 2 || title.length > 100)
     return show("Title must be 2 to 100 characters.");
@@ -387,12 +423,17 @@ $("expenseForm").onsubmit = async (e) => {
     return show("Amount can have at most 2 decimal places.");
   if (category && !/^[A-Za-z ]{1,50}$/.test(category))
     return show("Category must be letters only (no numbers or symbols).");
+  if (note.length > 200)
+    return show("Note can be at most 200 characters.");
 
   const body = {
     [F.title]: title,
     [F.amount]: amount,
     [F.category]: category || null
   };
+  if (expenseDate) body[F.date] = expenseDate;   // only sent when chosen
+  if (note) body[F.note] = note;                 // only sent when typed
+
   try {
     if (editingId !== null) await api(ROUTES.update(editingId), { body });
     else await api(ROUTES.create, { body });
@@ -403,7 +444,11 @@ $("expenseForm").onsubmit = async (e) => {
 
 function startEdit(x) {
   editingId = x[F.id];
-  $("eTitle").value = x[F.title]; $("eAmount").value = x[F.amount]; $("eCategory").value = x[F.category] || "";
+  $("eTitle").value = x[F.title];
+  $("eAmount").value = x[F.amount];
+  $("eCategory").value = x[F.category] || "";
+  $("eDate").value = getDate(x);
+  $("eNote").value = x[F.note] || "";
   $("formTitle").textContent = "Edit expense"; $("eSubmit").textContent = "Save";
   $("eCancel").classList.remove("hidden");
   window.scrollTo({ top: $("expenseForm").offsetTop - 80, behavior: "smooth" });

@@ -1,4 +1,5 @@
-
+from exceptions import BusinessRuleError
+from limiter import limiter
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -19,16 +20,10 @@ from exceptions import BusinessRuleError
 from limiter import limiter
 
 
-# ==========================================
 # DATABASE TABLE CREATION
-# ==========================================
-
 Base.metadata.create_all(bind=engine)
 
-
-# ==========================================
 # FASTAPI APPLICATION
-# ==========================================
 
 app = FastAPI(
     title="Smart Expense Tracker API",
@@ -37,9 +32,7 @@ app = FastAPI(
 )
 
 
-# ==========================================
 # RATE LIMITING
-# ==========================================
 
 app.state.limiter = limiter
 
@@ -48,10 +41,7 @@ app.add_exception_handler(
     _rate_limit_exceeded_handler
 )
 
-
-# ==========================================
 # CORS CONFIGURATION
-# ==========================================
 
 app.add_middleware(
     CORSMiddleware,
@@ -68,18 +58,14 @@ app.add_middleware(
 )
 
 
-# ==========================================
 # REGISTER ROUTERS
-# ==========================================
 
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(expenses.router)
 
 
-# ==========================================
 # BUSINESS RULE EXCEPTION HANDLER
-# ==========================================
 
 @app.exception_handler(BusinessRuleError)
 async def business_rule_handler(
@@ -95,9 +81,7 @@ async def business_rule_handler(
     )
 
 
-# ==========================================
 # VALIDATION ERROR HANDLER
-# ==========================================
 
 @app.exception_handler(RequestValidationError)
 async def validation_handler(
@@ -113,9 +97,7 @@ async def validation_handler(
     )
 
 
-# ==========================================
 # HEALTH CHECK
-# ==========================================
 
 @app.get("/", tags=["Health"])
 def root():
@@ -126,9 +108,7 @@ def root():
     }
 
 
-# ==========================================
 # FRONTEND STATIC FILES
-# ==========================================
 
 BASE_DIR = Path(__file__).resolve().parent
 
